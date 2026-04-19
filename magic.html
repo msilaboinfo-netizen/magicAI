@@ -2,69 +2,59 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Magic AI</title>
     <style>
-        body { margin: 0; background: black; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; font-family: sans-serif; }
-        #answer { font-size: 15vw; font-weight: bold; text-align: center; padding: 20px; text-transform: uppercase; }
-        #status { position: fixed; top: 10px; left: 10px; font-size: 14px; color: #444; }
+        body { margin: 0; background: black; color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; font-family: sans-serif; }
+        #answer { font-size: 15vw; font-weight: bold; text-align: center; }
+        #status { position: fixed; top: 10px; left: 10px; font-size: 14px; color: #555; }
     </style>
 </head>
-<body onclick="startMagic()">
-    <div id="status">TAP SCREEN TO START</div>
+<body onclick="start()">
+    <div id="status">TAP SCREEN</div>
     <div id="answer">READY</div>
 
     <script>
-        const apiKey = 'AIzaSyBiVr0i8fr5ggxUUyeLtXgwq8x45yldkAg'; 
-
-        const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+        const apiKey = 'AIzaSyBiVr0i8fr5ggxUUyeLtXgwq8x45yldkAg';
+        const SpeechRecognition = window.webkitSpeechRecognition || window.SpeechRecognition;
+        const recognition = new SpeechRecognition();
+        
         recognition.lang = 'ja-JP';
         recognition.continuous = true;
         recognition.interimResults = true;
 
-        let isStarted = false;
-
-        function startMagic() {
-            if (isStarted) return;
-            isStarted = true;
-            document.getElementById('status').innerText = 'LISTENING...';
-            document.getElementById('answer').innerText = 'START';
+        function start() {
             recognition.start();
+            document.getElementById('status').innerText = 'LISTENING...';
         }
 
         recognition.onresult = (event) => {
-            let finalTranscript = '';
-            for (let i = event.resultIndex; i < event.results.length; ++i) {
-                if (event.results[i].isFinal) finalTranscript += event.results[i][0].transcript;
-            }
+            const speech = event.results[event.results.length - 1][0].transcript;
+            document.getElementById('status').innerText = speech; // しゃべった言葉を左上に出す
             
-            if (finalTranscript) {
-                document.getElementById('status').innerText = 'GOT: ' + finalTranscript;
-                if (finalTranscript.includes('何') || finalTranscript.includes('教') || finalTranscript.includes('？') || finalTranscript.includes('は')) {
-                    askAI(finalTranscript);
+            if (event.results[event.results.length - 1].isFinal) {
+                if (speech.includes('何') || speech.includes('教') || speech.includes('は')) {
+                    askAI(speech);
                 }
             }
         };
 
-        recognition.onend = () => { if (isStarted) recognition.start(); };
-
         async function askAI(text) {
             const output = document.getElementById('answer');
             output.innerText = 'WAIT...';
-            
             try {
-                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `以下の問いに一言で、極めて短く答えて。余計な解説は一切不要。答えの単語だけを出して。：${text}` }] }] })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `一言で答えて：${text}` }] }] })
                 });
-                const data = await response.json();
-                const result = data.candidates[0].content.parts[0].text.trim();
-                output.innerText = result;
+                const data = await res.json();
+                output.innerText = data.candidates[0].content.parts[0].text.trim();
             } catch (e) {
                 output.innerText = 'ERROR';
             }
         }
+        recognition.onend = () => { recognition.start(); };
     </script>
 </body>
 </html>
