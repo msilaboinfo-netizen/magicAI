@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mentalist Assistant</title>
+    <style>
+        body { background-color: black; color: white; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; font-family: sans-serif; overflow: hidden; }
+        #answer { font-size: 20vw; font-weight: bold; text-align: center; word-break: break-all; }
+        #status { position: fixed; top: 10px; left: 10px; font-size: 10px; color: #333; }
+    </style>
+</head>
+<body>
+    <div id="status">Listening...</div>
+    <div id="answer">READY</div>
+
+    <script>
+        const answerElement = document.getElementById('answer');
+        const statusElement = document.getElementById('status');
+
+        // 1. 音声認識の設定
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'ja-JP';
+        recognition.continuous = true; // 常に聞き続ける
+        recognition.interimResults = false; // 確定した結果のみ取得
+
+        recognition.onresult = async (event) => {
+            const transcript = event.results[event.results.length - 1][0].transcript;
+            statusElement.innerText = "Recognized: " + transcript;
+
+            // 「何？」「なんだっけ？」などのキーワードが含まれているかチェック
+            if (transcript.includes("何") || transcript.includes("教え") || transcript.includes("いくら")) {
+                getAIAnswer(transcript);
+            }
+        };
+
+        // 音声認識が途切れたら自動再起動
+        recognition.onend = () => recognition.start();
+        recognition.start();
+
+        // 2. AI (Gemini API) への問い合わせ
+        async function getAIAnswer(question) {
+            answerElement.innerText = "WAIT...";
+            
+            // ここにAPIキーと処理を記述
+            // ※実際にはセキュリティのためバックエンド経由を推奨
+            const API_KEY = 'AIzaSyBiVr0i8fr5ggxUUyeLtXgwq8x45yldkAg'; 
+            const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${API_KEY}`;
+
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: `あなたはマジシャンの助手です。次の問いに対し、解説抜きで「答えの単語」や「数字」だけを10文字以内で返せ：${question}` }] }]
+                })
+            });
+
+            const data = await response.json();
+            const result = data.candidates[0].content.parts[0].text;
+            
+            // 3. 画面に巨大表示
+            answerElement.innerText = result.trim();
+        }
+    </script>
+</body>
+</html>
