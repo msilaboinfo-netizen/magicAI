@@ -25,18 +25,22 @@
         async function init() {
             if (active) return;
             if (!apiKey) {
-                apiKey = prompt("APIキーを入れてください");
+                apiKey = prompt("APIキーを入力してください");
                 if (!apiKey) return;
             }
             active = true;
-            try { recognition.start(); document.getElementById('status').innerText = 'LISTENING...'; } catch (e) {}
+            try { 
+                recognition.start(); 
+                document.getElementById('status').innerText = 'LISTENING...';
+                document.getElementById('answer').innerText = 'START';
+            } catch (e) {}
         }
 
         recognition.onresult = (event) => {
             let transcript = event.results[event.results.length - 1][0].transcript;
-            document.getElementById('status').innerText = transcript;
+            document.getElementById('status').innerText = 'YOU: ' + transcript;
             if (event.results[event.results.length - 1].isFinal) {
-                if (transcript.includes('は') || transcript.includes('何') || transcript.includes('教') || transcript.includes('？')) {
+                if (transcript.includes('は') || transcript.includes('何') || transcript.includes('？')) {
                     askAI(transcript);
                 }
             }
@@ -46,22 +50,14 @@
             const output = document.getElementById('answer');
             output.innerText = 'WAIT...';
             try {
-                // モデル名を gemini-pro に変更して確実性を高めました
-                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
+                // モデル名を gemini-1.5-flash にし、URLを v1beta に固定
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
                 const response = await fetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `一言で答えて。：${query}` }] }] })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `一言で答えて：${query}` }] }] })
                 });
                 const data = await response.json();
                 if (data.error) {
-                    output.innerText = "Error: " + data.error.message;
+                    output.innerText = "ERR: " + data.error.message;
                 } else {
-                    output.innerText = data.candidates[0].content.parts[0].text.trim();
-                }
-            } catch (err) { output.innerText = 'FETCH ERROR'; }
-        }
-        recognition.onend = () => { if (active) recognition.start(); };
-    </script>
-</body>
-</html>
