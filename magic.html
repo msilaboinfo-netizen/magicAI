@@ -5,81 +5,91 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Magic AI</title>
     <style>
-        body { margin: 0; background: black; color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; font-family: sans-serif; }
-        #answer { font-size: 15vw; font-weight: bold; text-align: center; }
-        #status { position: fixed; top: 10px; left: 10px; font-size: 14px; color: #555; }
+        body { margin: 0; background: black; color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; font-family: sans-serif; overflow: hidden; }
+        #answer { font-size: 15vw; font-weight: bold; text-align: center; width: 90%; word-break: break-all; }
+        #status { position: fixed; top: 10px; left: 10px; font-size: 14px; color: #444; width: 90%; overflow: hidden; white-space: nowrap; }
     </style>
 </head>
-<body onclick="start()">
-    <div id="status">TAP SCREEN</div>
+<body onclick="forceStart()">
+    <div id="status">STATUS: READY (TAP SCREEN)</div>
     <div id="answer">READY</div>
 
     <script>
         const apiKey = 'AIzaSyBiVr0i8fr5ggxUUyeLtXgwq8x45yldkAg';
-        
-        // iPhone/Safari専用の音声認識起動処理
         const SpeechRecognition = window.webkitSpeechRecognition || window.SpeechRecognition;
+        
         if (!SpeechRecognition) {
             document.getElementById('answer').innerText = 'NOT SUPPORTED';
         }
-        const recognition = new SpeechRecognition();
-        
-        recognition.lang = 'ja-JP';
-        recognition.continuous = true;
-        recognition.interimResults = true;
 
-        // ユーザーが画面を触った瞬間にオーディオコンテキストを有効化する
-        function start() {
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'ja-JP';
+        recognition.interimResults = true;
+        recognition.continuous = true;
+
+        let active = false;
+
+        // iPhoneで確実に起動させるための関数
+        function forceStart() {
+            if (active) return;
+            active = true;
+            document.getElementById('status').innerText = 'STATUS: STARTING...';
             try {
                 recognition.start();
-                document.getElementById('status').innerText = 'LISTENING...';
-                document.getElementById('answer').innerText = 'START';
             } catch (e) {
-                // すでに動いている場合は何もしない
+                console.log(e);
             }
         }
 
+        recognition.onstart = () => {
+            document.getElementById('status').innerText = 'STATUS: LISTENING...';
+            document.getElementById('answer').innerText = 'START';
+        };
+
         recognition.onresult = (event) => {
-            const result = event.results[event.results.length - 1];
-            const speech = result[0].transcript;
+            let transcript = '';
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+                transcript += event.results[i][0].transcript;
+            }
             
-            // 左上にリアルタイムで文字を出す（ここが動けばマイク成功）
-            document.getElementById('status').innerText = speech;
-            
-            if (result.isFinal) {
-                // 問いかけキーワードが含まれているかチェック
-                if (speech.includes('何') || speech.includes('教') || speech.includes('は') || speech.includes('？')) {
-                    askAI(speech);
+            // 左上にリアルタイムで表示
+            document.getElementById('status').innerText = 'YOU: ' + transcript;
+
+            if (event.results[event.results.length - 1].isFinal) {
+                const text = event.results[event.results.length - 1][0].transcript;
+                if (text.includes('何') || text.includes('教') || text.includes('は') || text.includes('？')) {
+                    askAI(text);
                 }
             }
         };
 
-        recognition.onerror = (event) => {
-            document.getElementById('status').innerText = 'Error: ' + event.error;
+        recognition.onerror = (e) => {
+            document.getElementById('status').innerText = 'ERROR: ' + e.error;
+            if (e.error === 'not-allowed') {
+                alert('マイクを許可してください');
+            }
+            active = false;
         };
 
         recognition.onend = () => {
-            // 止まっても自動で再開（無限ループ）
-            recognition.start();
+            active = false;
+            if (active) recognition.start(); // 自動再開
         };
 
-        async function askAI(text) {
+        async function askAI(query) {
             const output = document.getElementById('answer');
             output.innerText = 'WAIT...';
             try {
-                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `一言で答えて。余計な言葉は一切なし。：${text}` }] }] })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `以下の問いに一言で短く答えて。余計な解説は不要：${query}` }] }] })
                 });
-                const data = await res.json();
-                if (data.candidates && data.candidates[0].content.parts[0].text) {
-                    output.innerText = data.candidates[0].content.parts[0].text.trim();
-                } else {
-                    output.innerText = '??';
-                }
-            } catch (e) {
-                output.innerText = 'ERROR';
+                const data = await response.json();
+                const result = data.candidates[0].content.parts[0].text.trim();
+                output.innerText = result;
+            } catch (err) {
+                output.innerText = 'ERR';
             }
         }
     </script>
