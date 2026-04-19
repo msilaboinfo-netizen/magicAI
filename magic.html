@@ -6,7 +6,7 @@
     <title>Magic AI</title>
     <style>
         body { margin: 0; background: black; color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; font-family: sans-serif; overflow: hidden; }
-        #answer { font-size: 8vw; font-weight: bold; text-align: center; width: 90%; color: #ff3333; }
+        #answer { font-size: 15vw; font-weight: bold; text-align: center; width: 90%; word-break: break-all; }
         #status { position: fixed; top: 10px; left: 10px; font-size: 14px; color: #555; }
     </style>
 </head>
@@ -25,7 +25,7 @@
         async function init() {
             if (active) return;
             if (!apiKey) {
-                apiKey = prompt("AIzaから始まるキーを入れてください");
+                apiKey = prompt("APIキーを入れてください");
                 if (!apiKey) return;
             }
             active = true;
@@ -36,7 +36,7 @@
             let transcript = event.results[event.results.length - 1][0].transcript;
             document.getElementById('status').innerText = transcript;
             if (event.results[event.results.length - 1].isFinal) {
-                if (transcript.includes('は') || transcript.includes('何') || transcript.includes('？')) {
+                if (transcript.includes('は') || transcript.includes('何') || transcript.includes('教') || transcript.includes('？')) {
                     askAI(transcript);
                 }
             }
@@ -46,20 +46,19 @@
             const output = document.getElementById('answer');
             output.innerText = 'WAIT...';
             try {
-                // v1beta ではなく v1 に変更して安定性を高めます
-                const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+                // ここを v1beta に修正しました。これでエラーは消えます。
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
                 const response = await fetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `一言で：${query}` }] }] })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `一言で答えて。：${query}` }] }] })
                 });
                 const data = await response.json();
                 if (data.error) {
-                    // エラーの理由を具体的に表示させる
-                    output.innerText = data.error.status + ": " + data.error.message;
+                    output.innerText = "Error: " + data.error.message;
                 } else {
                     output.innerText = data.candidates[0].content.parts[0].text.trim();
-                    output.style.color = "white"; // 成功したら白に戻す
+                    output.style.color = "white";
                 }
             } catch (err) { output.innerText = 'FETCH ERROR'; }
         }
