@@ -6,7 +6,8 @@
     <title>Magic AI</title>
     <style>
         body { margin: 0; background: black; color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; font-family: sans-serif; overflow: hidden; }
-        #answer { font-size: 15vw; font-weight: bold; text-align: center; width: 90%; word-break: break-all; }
+        /* 文字サイズを15vwから8vwに落として、画面に収まるようにしました */
+        #answer { font-size: 8vw; font-weight: bold; text-align: center; width: 90%; word-break: break-all; }
         #status { position: fixed; top: 10px; left: 10px; font-size: 14px; color: #555; }
     </style>
 </head>
@@ -25,22 +26,18 @@
         async function init() {
             if (active) return;
             if (!apiKey) {
-                apiKey = prompt("APIキーを入力してください");
+                apiKey = prompt("APIキーを入れてください");
                 if (!apiKey) return;
             }
             active = true;
-            try { 
-                recognition.start(); 
-                document.getElementById('status').innerText = 'LISTENING...';
-                document.getElementById('answer').innerText = 'START';
-            } catch (e) {}
+            try { recognition.start(); document.getElementById('status').innerText = 'LISTENING...'; } catch (e) {}
         }
 
         recognition.onresult = (event) => {
             let transcript = event.results[event.results.length - 1][0].transcript;
-            document.getElementById('status').innerText = 'YOU: ' + transcript;
+            document.getElementById('status').innerText = transcript;
             if (event.results[event.results.length - 1].isFinal) {
-                if (transcript.includes('は') || transcript.includes('何') || transcript.includes('？')) {
+                if (transcript.includes('は') || transcript.includes('何') || transcript.includes('教') || transcript.includes('？')) {
                     askAI(transcript);
                 }
             }
@@ -50,14 +47,25 @@
             const output = document.getElementById('answer');
             output.innerText = 'WAIT...';
             try {
-                // モデル名を gemini-1.5-flash にし、URLを v1beta に固定
+                // 最も汎用的な v1beta/models/gemini-1.5-flash に固定します
                 const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
                 const response = await fetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `一言で答えて：${query}` }] }] })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `一言で答えて。：${query}` }] }] })
                 });
                 const data = await response.json();
                 if (data.error) {
-                    output.innerText = "ERR: " + data.error.message;
+                    // エラーメッセージも少し小さく表示します
+                    output.style.fontSize = "4vw";
+                    output.innerText = "Error: " + data.error.message;
                 } else {
+                    output.style.fontSize = "10vw"; // 答えは大きく
+                    output.innerText = data.candidates[0].content.parts[0].text.trim();
+                }
+            } catch (err) { output.innerText = 'FETCH ERROR'; }
+        }
+        recognition.onend = () => { if (active) recognition.start(); };
+    </script>
+</body>
+</html>
