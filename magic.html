@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Magic AI</title>
     <style>
         body { margin: 0; background: black; color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; font-family: sans-serif; }
@@ -16,27 +16,51 @@
 
     <script>
         const apiKey = 'AIzaSyBiVr0i8fr5ggxUUyeLtXgwq8x45yldkAg';
+        
+        // iPhone/Safari専用の音声認識起動処理
         const SpeechRecognition = window.webkitSpeechRecognition || window.SpeechRecognition;
+        if (!SpeechRecognition) {
+            document.getElementById('answer').innerText = 'NOT SUPPORTED';
+        }
         const recognition = new SpeechRecognition();
         
         recognition.lang = 'ja-JP';
         recognition.continuous = true;
         recognition.interimResults = true;
 
+        // ユーザーが画面を触った瞬間にオーディオコンテキストを有効化する
         function start() {
-            recognition.start();
-            document.getElementById('status').innerText = 'LISTENING...';
+            try {
+                recognition.start();
+                document.getElementById('status').innerText = 'LISTENING...';
+                document.getElementById('answer').innerText = 'START';
+            } catch (e) {
+                // すでに動いている場合は何もしない
+            }
         }
 
         recognition.onresult = (event) => {
-            const speech = event.results[event.results.length - 1][0].transcript;
-            document.getElementById('status').innerText = speech; // しゃべった言葉を左上に出す
+            const result = event.results[event.results.length - 1];
+            const speech = result[0].transcript;
             
-            if (event.results[event.results.length - 1].isFinal) {
-                if (speech.includes('何') || speech.includes('教') || speech.includes('は')) {
+            // 左上にリアルタイムで文字を出す（ここが動けばマイク成功）
+            document.getElementById('status').innerText = speech;
+            
+            if (result.isFinal) {
+                // 問いかけキーワードが含まれているかチェック
+                if (speech.includes('何') || speech.includes('教') || speech.includes('は') || speech.includes('？')) {
                     askAI(speech);
                 }
             }
+        };
+
+        recognition.onerror = (event) => {
+            document.getElementById('status').innerText = 'Error: ' + event.error;
+        };
+
+        recognition.onend = () => {
+            // 止まっても自動で再開（無限ループ）
+            recognition.start();
         };
 
         async function askAI(text) {
@@ -46,15 +70,18 @@
                 const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ contents: [{ parts: [{ text: `一言で答えて：${text}` }] }] })
+                    body: JSON.stringify({ contents: [{ parts: [{ text: `一言で答えて。余計な言葉は一切なし。：${text}` }] }] })
                 });
                 const data = await res.json();
-                output.innerText = data.candidates[0].content.parts[0].text.trim();
+                if (data.candidates && data.candidates[0].content.parts[0].text) {
+                    output.innerText = data.candidates[0].content.parts[0].text.trim();
+                } else {
+                    output.innerText = '??';
+                }
             } catch (e) {
                 output.innerText = 'ERROR';
             }
         }
-        recognition.onend = () => { recognition.start(); };
     </script>
 </body>
 </html>
