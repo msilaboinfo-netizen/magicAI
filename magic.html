@@ -6,8 +6,7 @@
     <title>Magic AI</title>
     <style>
         body { margin: 0; background: black; color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; font-family: sans-serif; overflow: hidden; }
-        /* 文字サイズを15vwから8vwに落として、画面に収まるようにしました */
-        #answer { font-size: 8vw; font-weight: bold; text-align: center; width: 90%; word-break: break-all; }
+        #answer { font-size: 15vw; font-weight: bold; text-align: center; width: 90%; word-break: break-all; }
         #status { position: fixed; top: 10px; left: 10px; font-size: 14px; color: #555; }
     </style>
 </head>
@@ -47,8 +46,8 @@
             const output = document.getElementById('answer');
             output.innerText = 'WAIT...';
             try {
-                // 最も汎用的な v1beta/models/gemini-1.5-flash に固定します
-                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+                // モデル名を gemini-pro に変更して確実性を高めました
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
                 const response = await fetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -56,11 +55,8 @@
                 });
                 const data = await response.json();
                 if (data.error) {
-                    // エラーメッセージも少し小さく表示します
-                    output.style.fontSize = "4vw";
                     output.innerText = "Error: " + data.error.message;
                 } else {
-                    output.style.fontSize = "10vw"; // 答えは大きく
                     output.innerText = data.candidates[0].content.parts[0].text.trim();
                 }
             } catch (err) { output.innerText = 'FETCH ERROR'; }
